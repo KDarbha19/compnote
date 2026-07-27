@@ -35,3 +35,21 @@ class StudySet(db.Model):
 class Flashcard(db.Model):
     #A single flashcard with a question ans answer
     __tablename__ = 'flashcards'
+
+    id = db.Column(db.Integer, primary_key = True)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable = False)
+    difficulty = db.Column(db.String(20), default = 'new') #new easy medium hard
+    review_count = db.Column(db.Integer, default = 0) #How many times reviewed
+    study_set_id = db.Column(db.Integer, db.ForeignKey('study_sets.id'), nullable = False)
+
+
+class QuizResult(db.Model):
+    #Stores result of a quiz attempt
+    __tablename__ = 'quiz_results'
+
+    id = db.Column(db.Integer, primary_key=True)
+    score = db.Column(db.Integer, nullable = False) #number correct
+    total = db.Column(db.Integer, nullable = False) #total questions
+    taken_at = db.Column(db.DateTime, default=datetime.utcnow)
+    study_set_id = db.Column(db.Integer, db.ForeignKey('study_sets.id'), nullable = False)
