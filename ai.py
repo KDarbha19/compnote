@@ -84,3 +84,79 @@ def fallback_flashcards(response):
     return cards
 
 #Quiz Generation
+def generate_quiz(text, num_questions=10):
+    """
+    Takes study material and returns list of multiple choice question dicts
+    Each dict has question, options(4) and correct index keys"""
+
+    prompt = build_prompt(f"""You are a study assistant. Generate exactly {num_questions} multiple choice questions from the text below.
+
+Return ONLY a JSON array in this exact format, nothing else:
+[
+  {{
+    "question": "...",
+    "options": ["option A", "option B", "option C", "option D"],
+    "correct_index": 0
+  }}
+]
+
+correct_index is 0 for A, 1 for B, 2 for C, 3 for D.
+
+TEXT:
+{text[:3000]}""")
+
+    response = generate(
+        model,
+        tokenizer,
+        prompt = prompt,
+        max_tokens = 1500,
+        verbose = False
+    )
+
+    return parse_quiz(response)
+
+def parse_quiz(response):
+    #Extract and validate quiz JSON from model response
+    try:
+        #Find JSON array in response, model can add extra text
+        match = re.search(r'\[.*\]', response, re.DOTALL)
+        if not match:
+            return []
+
+        questions = json.loads(match.group())
+
+        #Validate each question has right keys
+        validated = []
+        for q in questions:
+            if all(key in q for key in ['question', 'options', 'correct_index']):
+                if len(q['options']) == 4:
+                    validated.append({
+                        'question': str(q['question']).strip(),
+                        'options': [str(o).strip() for o in q['options']],
+                        'correct_index': int(q['correct_index'])
+                    })
+        return validated
+    except json.JSONDecodeError:
+        return []
+
+#Title Generation
+def generate_title(text):
+    #Generate a short title for study set based on the content
+
+    prompt = build_prompt(f"""Generate a short title (5 words max) for study material that starts with these words:
+
+{text[:500]}
+
+Return only the title, nothing else.""")
+
+    response = generate(
+        model,
+        tokenizer,
+        prompt=prompt,
+        max_tokens=20,
+        verbose=False
+    )
+
+    #Clean up response
+    title = response.strip().strip('"').strip("'")
+    return title if title else "Study Set"
