@@ -17,4 +17,15 @@ def create_app():
 
     #Database
     db.init_app(app)
-    
+
+    #Login Manager
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login' #redirection if not logged in 
+    login_manager.login_message = 'Please log in to access this page.'
+
+    from database import User
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
