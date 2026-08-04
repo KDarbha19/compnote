@@ -29,3 +29,23 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    #Register Blueprints 
+    #Splits the app into logical modules 
+    #auth.py handles login/setup, study.py handles flashcards/quizzes
+    from auth import auth_bp
+    from study import study_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(study_bp)
+
+    #Table creation 
+    with app.app_context():
+        db.create_all()
+        print("Database tables created!")
+
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(debug=True)
