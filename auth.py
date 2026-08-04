@@ -32,3 +32,18 @@ def signup():
         if User.query.filter_by(email=email).first():
             flash('Email already registered.', 'error')
             return render_template('signup.html')
+
+        #Create new user
+        #generate_password_hash turns password into a long random string
+        new_user = User(
+            username = username,
+            email = email,
+            password = generate_password_hash(password)
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+        login_user(new_user)
+        return redirect(url_for('study.dashboard'))
+
+    return render_template('signup.html')
