@@ -47,3 +47,26 @@ def signup():
         return redirect(url_for('study.dashboard'))
 
     return render_template('signup.html')
+
+#Login
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('study.dashboard'))
+
+    if request.method == 'POST':
+        email = request.form.get('email').strip().lower()
+        password = request.form.get('password')
+
+        user = User.query.filter_by(email=email).first()
+
+        #check password hash compares the plain password against stored hash
+
+        if not user or not check_password_hash(user.password, password):
+            flash('Invalid email or password.', 'error')
+            return render_template('login.html')
+
+        login_user(user)
+        return redirect(url_for('study.dashboard'))
+
+    return render_template('login.html')
