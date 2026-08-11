@@ -130,4 +130,53 @@ def quiz(set_id):
 
     return render_template('quiz.html', study_set = study_set, questions = questions)
 
+@study_bp.route('/quiz/<int:set_id>/submit', methods=['POST'])
+@login_required
+def submit_quiz(set_id):
+    #Recieves quiz answers, scores them, saves result
+    study_set = StudySet.query.filter_by(
+        id = set_id,
+        user_id = current_user.id
+    ).first_or_404()
+
+    data = request.get_json()
+    answers = data.get('answers', []) #List of selected option indices
+    questions = data.get('questions', []) #list of question dicts(question + correct answer)
+
+    if not answers or not questions:
+        return jsonify({'error' : 'No answers submitted!'}), 400
+
+    #Score quiz
+    score = 0
+    results = []
+    for i, question in enumerate(questions):
+        if i < len(answers):
+            correct = question['correct_index']
+            selected = answers[i]
+            is_correct = selected == correct
+            if is_correct:
+                score += 1
+            results.append({
+                'question' : question['question'],
+                'options' : question['options'],
+                'correct_index' : correct,
+                'selected_index' : selected,
+                'is_correct' : is_correct
+            })
+
+    #Save results to db
+    quiz_result = QuizResult(
+        score = score,
+        total = len(questions),
+        study_set_id = study_set.id
+    )
+    db.session.add(quiz_result)
+    db.session.commit()
+
+    return jsonify({
+        'score' : score,
+        'total' : len(questions),
+        'results' : results
+    })
+
     
