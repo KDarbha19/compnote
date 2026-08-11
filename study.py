@@ -101,5 +101,33 @@ def generate():
         return jsonify({'error' : f'Generation failed: {str(e)}'}), 500
 
 #View Study Set
+@study_bp.route('/set/<int:set_id>')
+@login_required
+def view_set(set_id):
+    #Show flashcards for a specific study set
+    study_set = StudySet.query.filter_by(
+        id = set_id,
+        user_id = current_user.id #user can only see their own sets
+    ).first_or_404()
+
+    return render_template('study.html', study_set = study_set)
+
+#Quiz
+@study_bp.route('/quiz/<int:set_id>')
+@login_required
+def quiz(set_id):
+    #Generates and shows a quiz for a study set
+    study_set = StudySet.query.filter_by(
+        id = set_id,
+        user_id = current_user.id
+    ).first_or_404()
+
+    questions = generate_quiz(study_set.source_text, num_questions=5)
+
+    if not questions:
+        flash('Could not generate quiz, try again later.', 'error')
+        return redirect(url_for('study.view_set', set_id=set_id))
+
+    return render_template('quiz.html', study_set = study_set, questions = questions)
 
     
