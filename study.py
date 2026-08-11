@@ -179,4 +179,30 @@ def submit_quiz(set_id):
         'results' : results
     })
 
+#Update flashcard difficulty
+@study_bp.route('/card/<int:card_id>/difficulty', methods=['POST'])
+@login_required
+def update_difficulty(card_id):
+    """
+    When reviewing flashcards user marks each as easy, med, hard
+    This updates the card's difficulty in the database for spaced repetition
+    """
+
+    card = Flashcard.query.get_or_404(card_id)
+
+    #Make sure the card belongs to the current user
+    if card.study_set.user_id != current_user.id:
+        return jsonify({'error' : 'Unauthorized'}), 403
+
+    difficulty = request.get_json().get('difficulty')
+    if difficulty not in ('easy', 'medium', 'hard'):
+        return jsonify({'error' : 'Invalid difficulty'}), 400
+
+    card.difficulty = difficulty
+    card.review_count += 1
+    db.session.commit()
+
+    return jsonify({'success' : True})
+
+
     
