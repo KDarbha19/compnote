@@ -204,5 +204,19 @@ def update_difficulty(card_id):
 
     return jsonify({'success' : True})
 
+#Delete study set
+@study_bp.route('/set/<int:set_id>/delete', methods=['POST'])
+@login_required
+def delete_set(set_id):
+    #Delete study set and all flashcards + quiz results associated
+    study_set = StudySet.query.filter_by(
+        id = set_id,
+        user_id = current_user.id
+    ).first_or_404()
+
+    db.session.delete(study_set)
+    db.session.commit()
+
+    return redirect(url_for('study.dashboard'))
 
     
