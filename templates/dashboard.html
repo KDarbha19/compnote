@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — CompNote{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="page-header">
+        <div>
+            <h1>Welcome back, {{ current_user.username }} 👋</h1>
+            <p>{{ sets|length }} study set{{ 's' if sets|length != 1 else '' }}</p>
+        </div>
+        <a href="{{ url_for('study.create') }}" class="btn-primary">
+            + New Study Set
+        </a>
+    </div>
+
+    {% if sets %}
+        <div class="sets-grid">
+            {% for item in sets %}
+            <div class="set-card card">
+
+                <div class="set-card-header">
+                    <h3 class="set-title">{{ item.study_set.title }}</h3>
+                    <span class="set-date">
+                        {{ item.study_set.created_at.strftime('%b %d') }}
+                    </span>
+                </div>
+
+                <div class="set-stats">
+                    <div class="stat">
+                        <span class="stat-number">{{ item.card_count }}</span>
+                        <span class="stat-label">cards</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">{{ item.quiz_count }}</span>
+                        <span class="stat-label">quizzes</span>
+                    </div>
+                    {% if item.latest_score %}
+                    <div class="stat">
+                        <span class="stat-number">{{ item.latest_score }}</span>
+                        <span class="stat-label">last score</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="set-actions">
+                    <a href="{{ url_for('study.view_set', set_id=item.study_set.id) }}"
+                       class="btn-primary">Study</a>
+                    <a href="{{ url_for('study.quiz', set_id=item.study_set.id) }}"
+                       class="btn-secondary">Quiz</a>
+                    <form method="POST"
+                          action="{{ url_for('study.delete_set', set_id=item.study_set.id) }}"
+                          onsubmit="return confirm('Delete this study set?')">
+                        <button type="submit" class="btn-danger">Delete</button>
+                    </form>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <!-- Empty state -->
+        <div class="empty-state card">
+            <div class="empty-icon">📚</div>
+            <h2>No study sets yet</h2>
+            <p>Upload your notes or a PDF to create your first study set</p>
+            <a href="{{ url_for('study.create') }}" class="btn-primary">
+                Create your first study set
+            </a>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
