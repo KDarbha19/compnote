@@ -110,7 +110,13 @@ def view_set(set_id):
         user_id = current_user.id #user can only see their own sets
     ).first_or_404()
 
-    return render_template('study.html', study_set = study_set)
+    cards_data = [{
+        'id': card.id,
+        'question': card.question,
+        'answer': card.answer
+    } for card in study_set.flashcards]
+
+    return render_template('study.html', study_set=study_set, cards_data=cards_data)
 
 #Quiz
 @study_bp.route('/quiz/<int:set_id>')
