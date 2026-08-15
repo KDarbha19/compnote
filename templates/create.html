@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}New Study Set — CompNote{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="page-header">
+        <h1>Create Study Set</h1>
+        <p>Upload a PDF or paste your notes — we'll generate flashcards automatically</p>
+    </div>
+
+    <div class="create-card card">
+
+        <!-- PDF Upload -->
+        <div class="upload-area" id="uploadArea"
+             onclick="document.getElementById('pdfInput').click()">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Click to upload PDF</div>
+            <div class="upload-subtext">or paste your notes below</div>
+            <input type="file" id="pdfInput" accept=".pdf"
+                   style="display:none" onchange="handlePdfSelect(event)">
+        </div>
+
+        <div id="pdfSelectedMsg" style="display:none" class="pdf-selected">
+            <span id="pdfFileName"></span>
+            <button onclick="clearPdf()" class="clear-pdf">✕</button>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+
+        <div class="form-group">
+            <label for="noteText">Paste your notes</label>
+            <textarea id="noteText" rows="10"
+                      placeholder="Paste lecture notes, textbook sections, or any study material here..."></textarea>
+        </div>
+
+        <div class="generate-row">
+            <button id="generateBtn" onclick="generateStudySet()" class="btn-primary">
+                ✨ Generate Study Set
+            </button>
+        </div>
+
+        <div class="progress-area" id="progressArea" style="display:none">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <p class="progress-text" id="progressText">Generating flashcards...</p>
+        </div>
+
+        <div class="error-box" id="errorBox" style="display:none"></div>
+
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    let selectedPdf = null;
+
+    function handlePdfSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        selectedPdf = file;
+        document.getElementById('uploadArea').style.display    = 'none';
+        document.getElementById('pdfSelectedMsg').style.display = 'flex';
+        document.getElementById('pdfFileName').textContent     = file.name;
+    }
+
+    function clearPdf() {
+        selectedPdf = null;
+        document.getElementById('pdfInput').value              = '';
+        document.getElementById('uploadArea').style.display    = 'block';
+        document.getElementById('pdfSelectedMsg').style.display = 'none';
+    }
+
+    async function generateStudySet() {
+        const text = document.getElementById('noteText').value.trim();
+        const btn  = document.getElementById('generateBtn');
+
+        if (!selectedPdf && !text) {
+            showError('Please upload a PDF or paste some text.');
+            return;
+        }
+
+        // Show loading state
+        btn.disabled    = true;
+        btn.textContent = 'Generating...';
+        document.getElementById('progressArea').style.display = 'block';
+        document.getElementById('errorBox').style.display     = 'none';
+        updateProgress('Reading content...');
+
+        const formData = new FormData();
+        if (selectedPdf) {
+            formData.append('pdf', selectedPdf);
+        } else {
+            formData.append('text', text);
+        }
+
+        try {
+            updateProgress('Generating flashcards with AI (this takes ~15 seconds)...');
+            const response = await fetch('/generate', {
+                method: 'POST',
+                body  : formData
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                showError(data.error || 'Something went wrong.');
+                return;
+            }
+
+            // Redirect to the new study set
+            window.location.href = data.redirect;
+
+        } catch (err) {
+            showError('Could not reach the server.');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = '✨ Generate Study Set';
+            document.getElementById('progressArea').style.display = 'none';
+        }
+    }
+
+    function updateProgress(text) {
+        document.getElementById('progressText').textContent = text;
+    }
+
+    function showError(message) {
+        const box = document.getElementById('errorBox');
+        box.textContent   = message;
+        box.style.display = 'block';
+    }
+</script>
+{% endblock %}
+{% endblock %}
