@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}{{ study_set.title }} — CompNote{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="page-header">
+        <div>
+            <h1>{{ study_set.title }}</h1>
+            <p>{{ study_set.flashcards|length }} flashcards</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('study.quiz', set_id=study_set.id) }}"
+               class="btn-secondary">Take Quiz</a>
+            <a href="{{ url_for('study.dashboard') }}"
+               class="btn-secondary">Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="card progress-card">
+        <div class="progress-info">
+            <span id="progressLabel">Card 1 of {{ study_set.flashcards|length }}</span>
+            <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Flashcard -->
+    <div class="flashcard-container">
+        <div class="flashcard" id="flashcard" onclick="flipCard()">
+            <div class="flashcard-inner" id="flashcardInner">
+
+                <div class="flashcard-front">
+                    <div class="card-label">Question</div>
+                    <div class="card-text" id="questionText"></div>
+                    <div class="flip-hint">Click to reveal answer</div>
+                </div>
+
+                <div class="flashcard-back">
+                    <div class="card-label">Answer</div>
+                    <div class="card-text" id="answerText"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Difficulty Buttons (shown after flip) -->
+    <div class="difficulty-row" id="difficultyRow" style="display:none">
+        <p class="difficulty-label">How well did you know this?</p>
+        <div class="difficulty-buttons">
+            <button class="diff-btn hard"   onclick="rateCard('hard')">😰 Hard</button>
+            <button class="diff-btn medium" onclick="rateCard('medium')">🤔 Medium</button>
+            <button class="diff-btn easy"   onclick="rateCard('easy')">😊 Easy</button>
+        </div>
+    </div>
+
+    <!-- Completed State -->
+    <div class="completed-card card" id="completedCard" style="display:none">
+        <div class="completed-icon">🎉</div>
+        <h2>Set Complete!</h2>
+        <div class="completed-stats">
+            <div class="stat">
+                <span class="stat-number" id="easyCount">0</span>
+                <span class="stat-label">Easy</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="mediumCount">0</span>
+                <span class="stat-label">Medium</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="hardCount">0</span>
+                <span class="stat-label">Hard</span>
+            </div>
+        </div>
+        <div class="completed-actions">
+            <button onclick="restartCards()" class="btn-secondary">Study Again</button>
+            <a href="{{ url_for('study.quiz', set_id=study_set.id) }}"
+               class="btn-primary">Take Quiz</a>
+        </div>
+    </div>
+
+</div>
+
+{% block scripts %}
+<script id="study-cards" type="application/json">{{ cards_data | tojson | safe }}</script>
+<script>
+    const cards = JSON.parse(document.getElementById('study-cards').textContent);
+
+    let currentIndex = 0;
+    let isFlipped    = false;
+    let counts       = { easy: 0, medium: 0, hard: 0 };
+
+    function loadCard(index) {
+        if (index >= cards.length) {
+            showCompleted();
+            return;
+        }
+
+        const card = cards[index];
+        document.getElementById('questionText').textContent = card.question;
+        document.getElementById('answerText').textContent   = card.answer;
+
+        // Reset flip state
+        isFlipped = false;
+        document.getElementById('flashcardInner').style.transform = '';
+        document.getElementById('difficultyRow').style.display     = 'none';
+        document.getElementById('flashcard').style.cursor          = 'pointer';
+
+        // Update progress
+        const percent = Math.round((index / cards.length) * 100);
+        document.getElementById('progressLabel').textContent =
+            `Card ${index + 1} of ${cards.length}`;
+        document.getElementById('progressPercent').textContent = percent + '%';
+        document.getElementById('progressFill').style.width    = percent + '%';
+    }
+
+    function flipCard() {
+        if (isFlipped) return;
+        isFlipped = true;
+        document.getElementById('flashcardInner').style.transform = 'rotateY(180deg)';
+        document.getElementById('difficultyRow').style.display    = 'flex';
+        document.getElementById('flashcard').style.cursor         = 'default';
+    }
+
+    async function rateCard(difficulty) {
+        const card = cards[currentIndex];
+        counts[difficulty]++;
+
+        // Save difficulty to database
+        await fetch(`/card/${card.id}/difficulty`, {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ difficulty })
+        });
+
+        currentIndex++;
+        loadCard(currentIndex);
+    }
+
+    function showCompleted() {
+        document.querySelector('.flashcard-container').style.display = 'none';
+        document.getElementById('difficultyRow').style.display       = 'none';
+        document.getElementById('completedCard').style.display       = 'block';
+        document.getElementById('easyCount').textContent             = counts.easy;
+        document.getElementById('mediumCount').textContent           = counts.medium;
+        document.getElementById('hardCount').textContent             = counts.hard;
+
+        // Update progress to 100%
+        document.getElementById('progressFill').style.width          = '100%';
+        document.getElementById('progressPercent').textContent       = '100%';
+        document.getElementById('progressLabel').textContent         =
+            `${cards.length} of ${cards.length}`;
+    }
+
+    function restartCards() {
+        currentIndex = 0;
+        counts       = { easy: 0, medium: 0, hard: 0 };
+        document.querySelector('.flashcard-container').style.display = 'block';
+        document.getElementById('completedCard').style.display       = 'none';
+        loadCard(0);
+    }
+
+    // Load first card
+    loadCard(0);
+</script>
+{% endblock %}
+{% endblock %}

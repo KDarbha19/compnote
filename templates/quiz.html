@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %}Quiz — {{ study_set.title }}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="page-header">
+        <div>
+            <h1>Quiz: {{ study_set.title }}</h1>
+            <p>{{ questions|length }} questions</p>
+        </div>
+        <a href="{{ url_for('study.view_set', set_id=study_set.id) }}"
+           class="btn-secondary">Back to Flashcards</a>
+    </div>
+
+    <!-- Quiz Questions -->
+    <div id="quizForm">
+        {% for q in questions %}
+        <div class="quiz-question card">
+            <div class="question-number">Question {{ loop.index }}</div>
+            <div class="question-text">{{ q.question }}</div>
+            <div class="options">
+                {% for option in q.options %}
+                <label class="option">
+                    <input type="radio"
+                           name="q{{ loop.index0 }}"
+                           value="{{ loop.index0 }}"
+                           data-question="{{ loop.index0 if loop.index0 == 0 else loop.index0 }}">
+                    <span class="option-letter">
+                        {{ ['A','B','C','D'][loop.index0] }}
+                    </span>
+                    <span class="option-text">{{ option }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="submit-row">
+            <button onclick="submitQuiz()" class="btn-primary" id="submitBtn">
+                Submit Quiz
+            </button>
+        </div>
+        <div class="error-box" id="errorBox" style="display:none"></div>
+    </div>
+
+    <!-- Results (hidden until submitted) -->
+    <div id="quizResults" style="display:none">
+
+        <div class="score-card card">
+            <div class="score-icon" id="scoreIcon"></div>
+            <div class="score-text">
+                <span id="scoreNumber" class="score-number"></span>
+                <span class="score-label">correct</span>
+            </div>
+            <div class="score-percent" id="scorePercent"></div>
+        </div>
+
+        <div id="resultsList"></div>
+
+        <div class="results-actions">
+            <button onclick="location.reload()" class="btn-secondary">Retake Quiz</button>
+            <a href="{{ url_for('study.view_set', set_id=study_set.id) }}"
+               class="btn-primary">Back to Flashcards</a>
+        </div>
+
+    </div>
+
+</div>
+
+{% block scripts %}
+<script id="quiz-data" type="application/json">{{ questions | tojson | safe }}</script>
+<script>
+    const questions = JSON.parse(document.getElementById('quiz-data').textContent);
+
+    async function submitQuiz() {
+        // Collect answers
+        const answers = [];
+        for (let i = 0; i < questions.length; i++) {
+            const selected = document.querySelector(`input[name="q${i}"]:checked`);
+            if (!selected) {
+                document.getElementById('errorBox').textContent =
+                    `Please answer question ${i + 1}.`;
+                document.getElementById('errorBox').style.display = 'block';
+                return;
+            }
+            answers.push(parseInt(selected.value));
+        }
+
+        document.getElementById('submitBtn').disabled    = true;
+        document.getElementById('submitBtn').textContent = 'Submitting...';
+        document.getElementById('errorBox').style.display = 'none';
+
+        try {
+            const response = await fetch('/quiz/{{ study_set.id }}/submit', {
+                method : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ answers, questions })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                document.getElementById('errorBox').textContent  =
+                    data.error || 'Submission failed.';
+                document.getElementById('errorBox').style.display = 'block';
+                return;
+            }
+
+            showResults(data);
+
+        } catch (err) {
+            document.getElementById('errorBox').textContent   =
+                'Could not reach server.';
+            document.getElementById('errorBox').style.display = 'block';
+        } finally {
+            document.getElementById('submitBtn').disabled    = false;
+            document.getElementById('submitBtn').textContent = 'Submit Quiz';
+        }
+    }
+
+    function showResults(data) {
+        // Hide form, show results
+        document.getElementById('quizForm').style.display    = 'none';
+        document.getElementById('quizResults').style.display = 'block';
+
+        const percent = Math.round((data.score / data.total) * 100);
+
+        document.getElementById('scoreIcon').textContent    =
+            percent >= 80 ? '🎉' : percent >= 60 ? '👍' : '📚';
+        document.getElementById('scoreNumber').textContent  =
+            `${data.score}/${data.total}`;
+        document.getElementById('scorePercent').textContent =
+            `${percent}% correct`;
+
+        // Show each question result
+        const list = document.getElementById('resultsList');
+        data.results.forEach((r, i) => {
+            const div       = document.createElement('div');
+            div.className   = `result-item card ${r.is_correct ? 'correct' : 'incorrect'}`;
+            div.innerHTML   = `
+                <div class="result-header">
+                    <span class="result-icon">${r.is_correct ? '✅' : '❌'}</span>
+                    <span class="result-question">${r.question}</span>
+                </div>
+                <div class="result-options">
+                    ${r.options.map((opt, j) => `
+                        <div class="result-option
+                            ${j === r.correct_index  ? 'correct-opt'  : ''}
+                            ${j === r.selected_index && !r.is_correct ? 'wrong-opt' : ''}">
+                            ${['A','B','C','D'][j]}. ${opt}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+{% endblock %}
+{% endblock %}
